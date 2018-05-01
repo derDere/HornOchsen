@@ -2,10 +2,63 @@ import socket
 import threading
 import time
 from card_calc import *
+import random
+
+
+class Card():
+  def __init__(self, card):
+    self.card = card
+    self.value = cardValue(card)
+
+
+class Game():
+  def __init__(self):
+    self.hasStarted = False
+    self.players = []
+    self.cards = []
+    self.stacks = {0:[],1:[],2:[],3:[]}
+  
+  def start(self):
+    if len(self.players) <= 1:
+      print("You can't play alone!")
+      return
+    print("Starting Game with %i players." % len(self.players))
+    print("Shuffeling deck.")
+    deck = []
+    for card in range(0,104):
+      deck.append(Card(card+1))
+    while len(deck) > 0:
+      index = random.randint(1000,9999) % len(deck)
+      self.cards.append(deck[index])
+      del deck[index]
+    print("Giving cards to players.")
+    for p in self.players:
+      for i in range(10):
+        p.hand.append(self.cards.pop())
+    print("Creating stacks.")
+    for s in self.stacks.keys():
+      self.stacks[s].append(self.cards.pop())
+      self.stacks[s].append(self.cards.pop())
+    self.hasStarted = False
+
+
+class Player():
+  def __init__(self, sock, addr):
+    self.sock = sock
+    self.hand = []
+    self.choosen = -1
+
+
+def CardPosMsg(card, x, y, f):
+  cf = "1"
+  if not f: cf = "0"
+  s = "c%03i%03i%03i%c" % (card, x, y, cf)
+  return s
 
 
 class ThreadedServer(object):
   def __init__(self, host, port):
+    self.running = True
     self.host = host
     self.port = port
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,26 +68,38 @@ class ThreadedServer(object):
   def listen(self):
     print("Listening to port:%i" % self.port)
     self.sock.listen(5)
-    while True:
+    while self.running:
       client, address = self.sock.accept()
       client.settimeout(60)
       threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
+  def stop(self):
+    self.running = False
+    socket.socket(socket.AF_INET, 
+                  socket.SOCK_STREAM).connect( (self.host, self.port))
+    self.sock.close()
+
   def listenToClient(self, client, address):
-    print("New client %s" % str(address))
-    size = 1024
-    while True:
-      #try:
-      print("sending")
-      client.send("c0050100101".encode())
-      time.sleep(2)
-      client.send("c0051100100".encode())
-      time.sleep(2)
-      client.send("c0051101101".encode())
-      time.sleep(2)
-      client.send("c0050101100".encode())
-      print("sended")
-      time.sleep(2)
+    global game
+    if game == None:
+      print("No game!")
+      client.close()
+      return
+    print("New Player %s joined." % str(address))
+    player = Player(client, address)
+    game.players.append(player)
+    while self.running:
+      time.sleep(0.2)
+      if game.hasStarted:
+        print("I'm in: %s" & str(address))
+        for s in self.game.stacks.keys():
+          for i in range(len(g.stacks[s])):
+            x = (s * 130) + 265
+            y = 130 + (i * 10)
+            msg = CardPosMsg(g.stacks[s][i].card,x,y,True).encode()
+            client.send(msg)
+      else:
+        client.send("w0000000000".encode())
       #data = client.recv(size)
       #if data:
       #  # Set the response to echo back the recieved data
@@ -47,12 +112,29 @@ class ThreadedServer(object):
       #  print("failed")
       #  client.close()
       #  return False
+    client.close()
+
+game = None
+server = None
+def serverWork(port):
+  global server
+  server = ThreadedServer('',port)
+  server.listen()  
 
 
 def main(argv):
+  global server, game
+  game = Game()
   port_num = 8080
-  server = ThreadedServer('',port_num)
-  server.listen()
+  threading.Thread(target = serverWork, args = (port_num,)).start()
+  command = None
+  while command != "exit":
+    command = input("->").lower()
+    if command == "exit":
+      print("Bye Bye")
+    if command == "start":
+      game.start()
+  server.stop()
 
 
 if __name__=="__main__":

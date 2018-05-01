@@ -1,3 +1,5 @@
+BUF_SIZE = 1024
+
 def cardValue(card):
   sum = 1
   if (card % 5) == 0:

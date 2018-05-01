@@ -4,7 +4,6 @@ from card_calc import *
 from tkinter import *
 
 FONT = ("Arial",25)
-BUF_SIZE = 1024
 card_bg = None
 card_img = None
 
@@ -26,7 +25,7 @@ class Card():
     self.card = card
     self.value = cardValue(card)
     self.img = card_img[self.value]
-    self.btn = Button(parent, image=card_bg, text=str(self.card)+"\n\n", width=100, height=150, command=self.click, compound=CENTER, borderwidth=0, font=FONT, highlightbackground="white", highlightcolor="white")          
+    self.btn = Button(parent, image=card_bg, text=str(self.card)+"\n\n", width=100, height=150, command=self.click, compound=CENTER, borderwidth=0, font=FONT, highlightbackground="#007F00", highlightcolor="#007F00")          
     self.clickHandler = []
   
   def flippDown(self):
@@ -59,17 +58,23 @@ class PlayFrame():
   def __init__(self, parent, sock):
     self.sock = sock
     #height calculation: 80 + 20 + 30 + 40 + 150 + 30 + 150 = 500
-    self.frame = Frame(parent, width=1000, height=500, bg="white")
+    self.frame = Frame(parent, width=1000, height=500, bg="#007F00")
+    self.infoLab = Label(self.frame, text="waiting ...", font=FONT, bg="#007F00", fg="white")
+    self.infoLab.place(x=265, y=100, height=30, width=490)
     self.cards = {}
+    self.lastMsg = None
         
   def update(self):
     #try:
-    print("waiting")
+    #print("waiting")
     r,w,e = select.select([self.sock],[],[],0.1)
     if r:
-      data = self.sock.recv(BUF_SIZE)
+      data = self.sock.recv(11)#BUF_SIZE)
       print(data.decode())
       msg = data.decode()
+      if self.lastMsg == msg:
+        return
+      self.lastMsg = msg
       if msg[0] == 'c':
         c = int(msg[1:4])
         x = int(msg[4:7])
@@ -78,6 +83,8 @@ class PlayFrame():
         if not c in self.cards:
           self.cards[c] = Card(self.frame, c)
         self.cards[c].place(x, y, f)
+      elif msg[0] == "w":
+        self.infoLab.configure(text="waiting ...")
     #except:
     #  pass
   

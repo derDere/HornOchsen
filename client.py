@@ -13,7 +13,7 @@ class MainWin:
     self.root = Tk()
     self.root.title("Horn Ochsen")
     self.root.geometry("1000x500")
-    self.frame = Frame(self.root)
+    self.frame = Frame(self.root, bg='black')
     #self.tbtn = Card(self.frame, 4, 1)
     #self.tbtn.place(10,10,100,150)
     self.startFrame = StartFrame(self.frame, self.socketAction)
