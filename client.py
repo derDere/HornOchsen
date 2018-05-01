@@ -1,50 +1,39 @@
 from tkinter import *
+from controls import *
 import time
 import socket
 import sys
-
-
-class Card():
-  def __init__(self, parent, card, value):
-    self.x = 0
-    self.y = 0
-    self.card = card
-    self.value = value
-    self.bgImg = PhotoImage(file="gfx/card_bg.png")
-    self.img = PhotoImage(file="gfx/card_%i.png" % value)
-    self.btn = Button(parent, image=self.img, text=str(card)+"\n\n", width=100, height=150, command=self.click, compound=CENTER, borderwidth=0, font=("Arial",25))
-    self.clickHandler = []
-  
-  def flippDown(self):
-    self.btn.configure(image=self.bgImg)
-  
-  def flippUp(self):
-    self.btn.configure(image=self.img)
-  
-  def click(self):
-    for handler in self.clickHandler:
-      handler(self)
-  
-  def addHandler(self, handler):
-    self.clickHandler.append(handler)
-  
-  def place(self, x, y, w, h):
-    self.x = x
-    self.y = y
-    self.btn.place(x=x, y=y, width=w, height=h)
+import select
 
 
 class MainWin:
   def __init__(self):
+    self.sock = None
     self.root = Tk()
+    self.root.title("Horn Ochsen")
     self.root.geometry("1000x400")
     self.frame = Frame(self.root, width=1000, height=1000, bg="white")
-    self.tbtn = Card(self.frame, 4, 1)
-    self.tbtn.place(10,10,100,150)
-    self.frame.pack()
+    #self.tbtn = Card(self.frame, 4, 1)
+    #self.tbtn.place(10,10,100,150)
+    self.startFrame = StartFrame(self.frame, self.socketAction)
+    self.startFrame.place()
+    self.frame.pack(fill=BOTH, expand=1)
+  
+  def socketAction(self, sock):
+    self.sock = sock
+    print("Socket opened")
   
   def timer(self):
-    self.tbtn.place(self.tbtn.x + 1, 10, 100, 150)
+    size = 1024
+    if self.sock != None:
+      #try:
+      print("waiting")
+      r,w,e = select.select([self.sock],[],[],0.1)
+      if r:
+        data = self.sock.recv(size)
+        print(data.decode())
+      #except:
+      #  pass
     self.root.after(100, self.timer)
   
   def run(self):
@@ -53,13 +42,6 @@ class MainWin:
 
 
 def main(argv):
-  # Create a TCP/IP socket
-  #  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  # Connect the socket to the port where the server is listening
-  #  server_address = ('localhost', 8080)
-  #  print('connecting to %s port %s' % server_address)
-  #  sock.connect(server_address)
-  
   mw = MainWin()
   mw.run()
 

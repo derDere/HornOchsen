@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 
 class ThreadedServer(object):
@@ -22,18 +23,23 @@ class ThreadedServer(object):
     print("New client %s" % str(address))
     size = 1024
     while True:
-      try:
-        data = client.recv(size)
-        if data:
-          # Set the response to echo back the recieved data
-          print("received from client %s: %s" % (str(address), data))
-          response = data
-          client.send(response)
-        else:
-          raise error('Client disconnected')
-      except:
-        client.close()
-        return False
+      #try:
+      print("sending")
+      client.send("Test".encode())
+      print("sended")
+      time.sleep(2)
+      #data = client.recv(size)
+      #if data:
+      #  # Set the response to echo back the recieved data
+      #  print("received from client %s: %s" % (str(address), data))
+      #  response = data
+      #  client.send(response)
+      #else:
+      #  raise error('Client disconnected')
+      #except:
+      #  print("failed")
+      #  client.close()
+      #  return False
 
 
 def cardValue(card):
