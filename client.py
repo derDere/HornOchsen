@@ -9,10 +9,11 @@ import select
 class MainWin:
   def __init__(self):
     self.sock = None
+    self.playFrame = None
     self.root = Tk()
     self.root.title("Horn Ochsen")
-    self.root.geometry("1000x400")
-    self.frame = Frame(self.root, width=1000, height=1000, bg="white")
+    self.root.geometry("1000x500")
+    self.frame = Frame(self.root)
     #self.tbtn = Card(self.frame, 4, 1)
     #self.tbtn.place(10,10,100,150)
     self.startFrame = StartFrame(self.frame, self.socketAction)
@@ -21,19 +22,13 @@ class MainWin:
   
   def socketAction(self, sock):
     self.sock = sock
+    self.playFrame = PlayFrame(self.frame, self.sock)
+    self.playFrame.place()
     print("Socket opened")
   
   def timer(self):
-    size = 1024
-    if self.sock != None:
-      #try:
-      print("waiting")
-      r,w,e = select.select([self.sock],[],[],0.1)
-      if r:
-        data = self.sock.recv(size)
-        print(data.decode())
-      #except:
-      #  pass
+    if self.playFrame != None:
+      self.playFrame.update()
     self.root.after(100, self.timer)
   
   def run(self):

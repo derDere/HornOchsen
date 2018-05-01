@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+from card_calc import *
 
 
 class ThreadedServer(object):
@@ -25,7 +26,13 @@ class ThreadedServer(object):
     while True:
       #try:
       print("sending")
-      client.send("Test".encode())
+      client.send("c0050100101".encode())
+      time.sleep(2)
+      client.send("c0051100100".encode())
+      time.sleep(2)
+      client.send("c0051101101".encode())
+      time.sleep(2)
+      client.send("c0050101100".encode())
       print("sended")
       time.sleep(2)
       #data = client.recv(size)
@@ -40,22 +47,6 @@ class ThreadedServer(object):
       #  print("failed")
       #  client.close()
       #  return False
-
-
-def cardValue(card):
-  sum = 1
-  if (card % 5) == 0:
-    sum += 1
-  if (card % 10) == 0:
-    sum += 1
-  if len(list(str(card))) == 2:
-    A = list(str(card))[0]
-    B = list(str(card))[1]
-    if A == B:
-      sum = 5
-  if card == 55:
-    sum = 7
-  return sum
 
 
 def main(argv):

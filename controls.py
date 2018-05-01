@@ -1,25 +1,42 @@
 import socket
+import select
+from card_calc import *
 from tkinter import *
 
 FONT = ("Arial",25)
+BUF_SIZE = 1024
+card_bg = None
+card_img = None
 
 
 class Card():
-  def __init__(self, parent, card, value):
+  def __init__(self, parent, card):
+    global card_img, card_bg
+    if card_img == None:
+      card_bg = PhotoImage(file="gfx/card_bg.png")
+      card_img = {
+        1: PhotoImage(file="gfx/card_1.png"),
+        2: PhotoImage(file="gfx/card_2.png"),
+        3: PhotoImage(file="gfx/card_3.png"),
+        5: PhotoImage(file="gfx/card_5.png"),
+        7: PhotoImage(file="gfx/card_7.png")
+      }
     self.x = 0
     self.y = 0
     self.card = card
-    self.value = value
-    self.bgImg = PhotoImage(file="gfx/card_bg.png")
-    self.img = PhotoImage(file="gfx/card_%i.png" % value)
-    self.btn = Button(parent, image=self.img, text=str(card)+"\n\n", width=100, height=150, command=self.click, compound=CENTER, borderwidth=0, font=FONT)
+    self.value = cardValue(card)
+    self.img = card_img[self.value]
+    self.btn = Button(parent, image=card_bg, text=str(self.card)+"\n\n", width=100, height=150, command=self.click, compound=CENTER, borderwidth=0, font=FONT, highlightbackground="white", highlightcolor="white")          
     self.clickHandler = []
   
   def flippDown(self):
-    self.btn.configure(image=self.bgImg)
+    global card_bg
+    print("Flipp Down")
+    self.btn.configure(image=card_bg, text="")
   
   def flippUp(self):
-    self.btn.configure(image=self.img)
+    print("Flipp Up")
+    self.btn.configure(image=self.img, text=str(self.card)+"\n\n")
   
   def click(self):
     for handler in self.clickHandler:
@@ -28,10 +45,44 @@ class Card():
   def addHandler(self, handler):
     self.clickHandler.append(handler)
   
-  def place(self, x, y, w, h):
+  def place(self, x, y, f = True):
+    if f == True:
+      self.flippUp()
+    else:
+      self.flippDown()
     self.x = x
     self.y = y
-    self.btn.place(x=x, y=y, width=w, height=h)
+    self.btn.place(x=x, y=y, width=100, height=150)
+
+
+class PlayFrame():
+  def __init__(self, parent, sock):
+    self.sock = sock
+    #height calculation: 80 + 20 + 30 + 40 + 150 + 30 + 150 = 500
+    self.frame = Frame(parent, width=1000, height=500, bg="white")
+    self.cards = {}
+        
+  def update(self):
+    #try:
+    print("waiting")
+    r,w,e = select.select([self.sock],[],[],0.1)
+    if r:
+      data = self.sock.recv(BUF_SIZE)
+      print(data.decode())
+      msg = data.decode()
+      if msg[0] == 'c':
+        c = int(msg[1:4])
+        x = int(msg[4:7])
+        y = int(msg[7:10])
+        f = (msg[10] == '1')
+        if not c in self.cards:
+          self.cards[c] = Card(self.frame, c)
+        self.cards[c].place(x, y, f)
+    #except:
+    #  pass
+  
+  def place(self):
+    self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=1000, height=500)
 
 
 class StartFrame():
