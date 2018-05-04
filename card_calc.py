@@ -1,4 +1,4 @@
-BUF_SIZE = 1024
+BUFF_SIZE = 11
 
 def cardValue(card):
   sum = 1
