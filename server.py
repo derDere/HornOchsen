@@ -226,8 +226,8 @@ class ThreadedServer(object):
                     print("%s has choosen hand %i" % (str(address), i))
               elif player.isStacking:
                 for s in self.game.stacks.keys():
-                  for card in self.game.stacks[s]:
-                    if card.card == card:
+                  for sCard in self.game.stacks[s]:
+                    if sCard.card == card:
                       player.stack = s
                       print("%s has choosen stack %i" % (str(address), s))
               else:
