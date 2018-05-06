@@ -10,7 +10,7 @@ MEDIUM_FONT = ("Arial", 17)
 FONT = ("Arial",25)
 card_bg = None
 card_img = None
-
+crown_img = None
 
 class Card():
   def __init__(self, parent, card):
@@ -134,8 +134,11 @@ class Card():
 
 
 class PlayFrame():
-  def __init__(self, parent, sock):
+  def __init__(self, parent, sock, finishAction):
+    global crown_img
+    crown_img = PhotoImage(file="gfx/crown.png")
     self.sock = sock
+    self.finishAction = finishAction
     #height calculation: 80 + 10 + 40 + (4 * 55) + 150 + 30 + 150 = 710
     self.frame = Frame(parent, width=1000, height=710, bg="#007F00")
     self.infoLab = Label(self.frame, text="waiting ...", font=FONT, bg="#007F00", fg="white")
@@ -148,12 +151,16 @@ class PlayFrame():
     self.scoreTable.place(x=0,y=95,height=200,width=140)
     Label(self.scoreTable, text="Player", font=SMALL_FONT, fg="white", bg="#005F00").place(x=0,y=0,height=20,width=70)
     Label(self.scoreTable, text="Points", font=SMALL_FONT, fg="white", bg="#005F00").place(x=70,y=0,height=20,width=70)
+    self.crown = Label(self.frame, image=crown_img)
+    self.crown.place(x=-20,y=-20,width=20,height=20)
+    self.leaveBtn = Button(self.frame, text="leave game", font=FONT, command=self.finishAction)
     self.cards = {}
     self.lastMsg = None
     self.msgs = []
     self.running = True
     self.scores = {}
     self.myPlayNumber = -1
+    self.winner = -10
     threading.Thread(target = self.read).start()    
   
   def addScoreLab(self, player):
@@ -166,17 +173,20 @@ class PlayFrame():
     lab2.place(x=70,y=20*player,width=70,height=20)
   
   def read(self):
-    while self.running:
-      r = True
-      while r:
-        r,w,e = select.select([self.sock],[],[],0.1)
-        if r:
-          data = self.sock.recv(BUFF_SIZE)
-          msg = data.decode()
-          if self.lastMsg != msg:
-            self.msgs.append(msg)
-            self.lastMsg = msg
-      time.sleep(0.02)
+    try:
+      while self.running:
+        r = True
+        while r:
+          r,w,e = select.select([self.sock],[],[self.sock],0.1)
+          if r:
+            data = self.sock.recv(BUFF_SIZE)
+            msg = data.decode()
+            if self.lastMsg != msg:
+              self.msgs.append(msg)
+              self.lastMsg = msg
+        time.sleep(0.001)
+    except:
+      self.msgs = ["closed"]
   
   def animate(self):
     for c in self.cards:
@@ -186,11 +196,21 @@ class PlayFrame():
     #try:
     #print("waiting")
     cardMoved = False
-    while len(self.msgs) > 0:
+    while (len(self.msgs) > 0) and (self.winner == -10):
       msg = self.msgs.pop(0)
       self.lastMsg = msg
-      #print(msg)
-      if msg[0] == 'c':
+      print(msg)
+      if msg[0:4] == "full":
+        self.winner == -20
+        self.infoLab.configure(text="Sorry the game is full!")
+        self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
+        return
+      elif msg == "":
+        self.winner == -30
+        self.infoLab.configure(text="Sorry the game has closed!")
+        self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
+        return
+      elif msg[0] == 'c':
         c = int(msg[1:4])
         x = int(msg[4:7])
         y = int(msg[7:10])
@@ -201,6 +221,7 @@ class PlayFrame():
           self.cards[c] = card
         if self.cards[c].place(x, y, f):
           cardMoved = True
+          self.leaveBtn.tkraise()
       elif msg[0] == "r":
         if msg[1] == "A":
           for c in self.cards:
@@ -219,6 +240,14 @@ class PlayFrame():
           if host: hostStr = " (host)"
           self.playerLab.configure(text="Player %i%s" % (myP, hostStr))
           self.myPlayNumber = myP
+        elif msg[1] == "f":
+          fP = int(msg[2:4])
+          self.crown.place(x=140,y=95+(20*fP),width=20,height=20)
+        elif msg[1] == "F":
+          fP = int(msg[2:4])
+          self.infoLab.configure(text="Player %i winns the Game!" % fP)
+          self.winner = fP
+          self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
         elif msg[1] == "p":
           csP = int(msg[2:4])
           self.infoLab.configure(text="Player %i is stacking ..." % csP)
@@ -226,7 +255,7 @@ class PlayFrame():
           points = int(msg[2:5])
           self.pointLab.configure(text="Points: %i" % points)
         elif msg[1] == "c":
-          self.infoLab.configure(text="Choose your card.")
+          self.infoLab.configure(text="Pick your card.")
         elif msg[1] == "s":
           self.infoLab.configure(text="Choose your stack.")
         elif msg[1] == "S":
@@ -269,18 +298,29 @@ class StartFrame():
   def __init__(self, parent, socketAction):
     self.socketAction = socketAction
     #Main Frame
-    self.frame = Frame(parent, width=200, height=110, bg="silver")
+    self.frame = Frame(parent, width=200, height=230, bg="silver")
     #Play Button
     self.pBtn = Button(self.frame, text="Play", font=FONT, command=self._PlayBtnClick)
     self.pBtn.place(x=20, y=20, width=160, height=50)
+    #Host Button
+    self.hBtn = Button(self.frame, text="Host", font=FONT, command=self._PlayBtnClick)
+    self.hBtn.place(x=20, y=60, width=160, height=50)
+    #PlayerCount Textbox
+    self.pCount = StringVar()
+    self.pCount.set("10")
+    self.pcTxb = Entry(self.frame, textvariable=self.pCount)
+    self.pcTxb.place(x=20, y=110, width=160, height=20)
+    #Join Button
+    self.jBtn = Button(self.frame, text="Join", font=FONT, command=self._PlayBtnClick)
+    self.jBtn.place(x=20, y=140, width=160, height=50)
     #IP Textbox
     self.ip = StringVar()
     self.ip.set("127.0.0.1")
     self.ipTxb = Entry(self.frame, textvariable=self.ip)
-    self.ipTxb.place(x=20, y=70, width=160, height=20)
+    self.ipTxb.place(x=20, y=190, width=160, height=20)
   
   def place(self):
-    self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=200, height=110)
+    self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=200, height=230)
   
   def _PlayBtnClick(self):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

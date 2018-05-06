@@ -23,9 +23,16 @@ class MainWin:
   
   def socketAction(self, sock):
     self.sock = sock
-    self.playFrame = PlayFrame(self.frame, self.sock)
+    self.playFrame = PlayFrame(self.frame, self.sock, self.returnToMainScreen)
     self.playFrame.place()
     print("Socket opened")
+  
+  def returnToMainScreen(self):
+    self.playFrame.frame.place_forget()
+    self.sock.close()
+    self.sock = None
+    self.playFrame = None
+    self.startFrame.place()
   
   def timer(self):
     if self.playFrame != None:

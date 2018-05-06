@@ -14,15 +14,19 @@ class Card():
 
 class Game():
   def __init__(self):
+    self.playerMax = 10
     self.hasStarted = False
     self.players = []
     self.cards = []
     self.stacks = {0:[],1:[],2:[],3:[]}
+    self.startedWith = 0
+    self.closed = False
   
   def start(self):
     if len(self.players) <= 1:
       print("You can't play alone!")
       return
+    self.startedWith = len(self.players)
     print("Starting Game with %i players." % len(self.players))
     self.hasStarted = True
     threading.Thread(target = self.play).start()
@@ -48,6 +52,15 @@ class Game():
     for s in self.stacks.keys():
       self.stacks[s].append(self.cards.pop())
   
+  def smallestPlayer(self):
+    favoritPlayer = -10
+    lessestPoints = 1000
+    for p in self.players:
+      if p.getGamePoints() < lessestPoints:
+        lessestPoints = p.getGamePoints()
+        favoritPlayer = p.num
+    return favoritPlayer
+  
   def play(self):
     print("Game started.")
     gameRunning = True
@@ -58,6 +71,10 @@ class Game():
         print("Choosing Phase ...")
         choosingPhase = True
         while choosingPhase:
+          if len(self.players) < self.startedWith:
+            self.closed = True
+            exit()
+            return
           choosingPhase = False
           for p in self.players:
             if p.choosen == -1:
@@ -72,6 +89,10 @@ class Game():
         pL = sorted(pL, key=lambda player: player.hand[player.choosen].card)
         stackingPhase = True
         while stackingPhase:
+          if len(self.players) < self.startedWith:
+            self.closed = True
+            exit()
+            return
           cP = pL.pop(0) # currentPlayer
           playerCard = cP.hand[cP.choosen]
           delta = {}
@@ -117,9 +138,19 @@ class Game():
         p.points = []
         if p.getGamePoints() >= 66:
           gameRunning = False
+      favoritPlayer = self.smallestPlayer()
+      if favoritPlayer != -10:
+        for p in self.players:
+          p.sock.send(("lf%02i0000000" % favoritPlayer).encode())
       for s in self.stacks:
         self.stacks[s] = []
     print("Game End")
+    winner = self.smallestPlayer()
+    if winner != -10:
+      for p in self.players:
+        p.sock.send(("lF%02i0000000" % winner).encode())
+    self.closed = True
+    exit()
 
 
 class Player():
@@ -130,6 +161,8 @@ class Player():
     self.hand = []
     self.points = []
     self.rounds = []
+    if self.num == 1:
+      self.rounds.append(65)
     self.choosen = -1
     self.stack = -1
     self.isChoosing = False
@@ -174,7 +207,11 @@ class ThreadedServer(object):
     print("Listening to port:%i" % self.port)
     self.sock.listen(5)
     while self.running:
+      if self.game.closed:
+        return
       client, address = self.sock.accept()
+      if self.game.closed:
+        return
       client.settimeout(60)
       threading.Thread(target = self.listenToClient, args = (client,address)).start()
 
@@ -185,101 +222,117 @@ class ThreadedServer(object):
     self.sock.close()
 
   def listenToClient(self, client, address):
-    print("New Player %s joined." % str(address))
-    player = Player(client, address, len(self.game.players) + 1)
-    self.game.players.append(player)
-    msgWho = "lI%02i%i000000" % (player.num, int(player.host))
-    client.send(msgWho.encode())
-    print("sended: %s" % msgWho)
-    while self.running:
-      time.sleep(0.1)
-      if self.game.hasStarted:
-        #Updating Player cards
-        for s in self.game.stacks.keys():
-          for i in range(len(self.game.stacks[s])):
-            x = (s * 130) + 265
-            y = 130 + (i * 55)
-            msg = CardPosMsg(self.game.stacks[s][i].card,x,y,True).encode()
-            client.send(msg)
-        for i in range(len(player.hand)):
-          x = (i * 100)
-          y = 600
-          if i == player.choosen:
-            y -= 60
-          msg = CardPosMsg(player.hand[i].card,x,y,True).encode()
-          client.send(msg)
-        oponent_index = 0
-        for p in self.game.players:
-          client.send(("lS%02i%03i0000" % (p.num, p.getGamePoints())).encode())
-          if p != player:
-            if p.choosen != -1:
-              x = (oponent_index * 110) + ((1000 - (((len(self.game.players) - 1) * 110) - 10)) / 2)
-              y = -80
-              msg = CardPosMsg(-oponent_index,x,y,False).encode()
+    try:
+      if self.game.playerMax <= len(self.game.players):
+        client.send("full0000000".encode())
+        client.close()
+        return
+      print("New Player %s joined." % str(address))
+      player = Player(client, address, len(self.game.players) + 1)
+      self.game.players.append(player)
+      msgWho = "lI%02i%i000000" % (player.num, int(player.host))
+      client.send(msgWho.encode())
+      print("sended: %s" % msgWho)
+      if len(self.game.players) >= self.game.playerMax:
+        self.game.start()
+      while self.running:
+        if self.game.closed or (len(self.game.players) < self.game.startedWith):
+          self.running = False
+          client.close()
+          break
+        time.sleep(0.1)
+        if self.game.hasStarted:
+          #Updating Player cards
+          for s in self.game.stacks.keys():
+            for i in range(len(self.game.stacks[s])):
+              x = (s * 130) + 265
+              y = 130 + (i * 55)
+              msg = CardPosMsg(self.game.stacks[s][i].card,x,y,True).encode()
               client.send(msg)
-            else:
-              client.send(("r%03i0000000" % -oponent_index).encode())
-            for card in p.points:
-              client.send(("r%03i0000000" % card.card).encode())
-            oponent_index += 1
-        for i in range(len(player.points)):
-          x = 880
-          y = 80 + (13 * i)
-          msg = CardPosMsg(player.points[i].card,x,y,True).encode()
-          client.send(msg)
-        someOneStacks = False
-        for p in self.game.players:
-          if p != player:
-            if p.isStacking:
-              client.send(("lp%02i0000000" % p.num).encode())
-              someOneStacks = True
-        if someOneStacks == False:
-          if player.isChoosing:
-            client.send("lc000000000".encode()) #Send msg: Choose your card.
-          elif player.isStacking:
-            client.send("ls000000000".encode()) #Send msg: Choose your stack.
-          else:
-            client.send("l0000000000".encode()) #Send msg: (empty string)
-        client.send(("lP%03i000000" % player.getPoints()).encode())
-        #Reading Player Input
-        r = True
-        while r:
-          r,w,e = select.select([client],[],[],0.1)
-          if r:
-            data = client.recv(BUFF_SIZE)
-            msg = data.decode()
-            print(msg)
-            if msg[0] == "c":
-              card = int(msg[1:4])
-              if player.isChoosing:
-                for i in range(len(player.hand)):
-                  if player.hand[i].card == card:
-                    player.choosen = i
-                    print("%s has choosen hand %i" % (str(address), i))
-              elif player.isStacking:
-                for s in self.game.stacks.keys():
-                  for sCard in self.game.stacks[s]:
-                    if sCard.card == card:
-                      player.stack = s
-                      print("%s has choosen stack %i" % (str(address), s))
+          for i in range(len(player.hand)):
+            x = (i * 100)
+            y = 600
+            if i == player.choosen:
+              y -= 60
+            msg = CardPosMsg(player.hand[i].card,x,y,True).encode()
+            client.send(msg)
+          oponent_index = 0
+          for p in self.game.players:
+            client.send(("lS%02i%03i0000" % (p.num, p.getGamePoints())).encode())
+            if p != player:
+              if p.choosen != -1:
+                x = (oponent_index * 110) + ((1000 - (((len(self.game.players) - 1) * 110) - 10)) / 2)
+                y = -80
+                msg = CardPosMsg(-oponent_index,x,y,False).encode()
+                client.send(msg)
               else:
-                print("%s no action." % str(address))
-      else:
-        client.send("lw000000000".encode()) #Send msg: waiting ...
-      #data = client.recv(size)
-      #if data:
-      #  # Set the response to echo back the recieved data
-      #  print("received from client %s: %s" % (str(address), data))
-      #  response = data
-      #  client.send(response)
-      #else:
-      #  raise error('Client disconnected')
-      #except:
-      #  print("failed")
-      #  client.close()
-      #  return False
+                client.send(("r%03i0000000" % -oponent_index).encode())
+              for card in p.points:
+                client.send(("r%03i0000000" % card.card).encode())
+              oponent_index += 1
+          for i in range(len(player.points)):
+            x = 880
+            y = 80 + (13 * i)
+            msg = CardPosMsg(player.points[i].card,x,y,True).encode()
+            client.send(msg)
+          someOneStacks = False
+          for p in self.game.players:
+            if p != player:
+              if p.isStacking:
+                client.send(("lp%02i0000000" % p.num).encode())
+                someOneStacks = True
+          if someOneStacks == False:
+            if player.isChoosing:
+              client.send("lc000000000".encode()) #Send msg: Choose your card.
+            elif player.isStacking:
+              client.send("ls000000000".encode()) #Send msg: Choose your stack.
+            else:
+              client.send("l0000000000".encode()) #Send msg: (empty string)
+          client.send(("lP%03i000000" % player.getPoints()).encode())
+          #Reading Player Input
+          r = True
+          while r:
+            r,w,e = select.select([client],[],[],0.1)
+            if r:
+              data = client.recv(BUFF_SIZE)
+              msg = data.decode()
+              print(msg)
+              if msg[0] == "c":
+                card = int(msg[1:4])
+                if player.isChoosing:
+                  for i in range(len(player.hand)):
+                    if player.hand[i].card == card:
+                      player.choosen = i
+                      print("%s has choosen hand %i" % (str(address), i))
+                elif player.isStacking:
+                  for s in self.game.stacks.keys():
+                    for sCard in self.game.stacks[s]:
+                      if sCard.card == card:
+                        player.stack = s
+                        print("%s has choosen stack %i" % (str(address), s))
+                else:
+                  print("%s no action." % str(address))
+        else:
+          client.send("lw000000000".encode()) #Send msg: waiting ...
+        #data = client.recv(size)
+        #if data:
+        #  # Set the response to echo back the recieved data
+        #  print("received from client %s: %s" % (str(address), data))
+        #  response = data
+        #  client.send(response)
+        #else:
+        #  raise error('Client disconnected')
+        #except:
+        #  print("failed")
+        #  client.close()
+        #  return False
+    except:
+      print("Client Error (%s):\n%s" % (str(address), sys.exc_info()[0]))
     client.close()
     self.game.players.remove(player)
+    self.game.closed = True
+    self.stop()
+    exit()
 
 server = None
 def serverWork(port, game):
@@ -290,17 +343,29 @@ def serverWork(port, game):
 
 def main(argv):
   global server
-  game = Game()
   port_num = 8080
-  threading.Thread(target = serverWork, args = (port_num, game)).start()
-  command = None
-  while command != "exit":
-    command = input("->").lower()
-    if command == "exit":
-      print("Bye Bye")
-    if command == "start":
-      game.start()
-  server.stop()
+  playerCount = 10
+  if len(argv) > 0:
+    try:
+      intVal = int(argv[0])
+      if intVal > 10:
+        print("The player maximum is 10!")
+        return
+      playerCount = intVal
+    except:
+      pass
+  game = Game()
+  game.playerMax = playerCount
+  serverWork(port_num, game)
+  #threading.Thread(target = serverWork, args = (port_num, game)).start()
+  #command = None
+  #while command != "exit":
+  #  command = input("->").lower()
+  #  if command == "exit":
+  #    print("Bye Bye")
+  #  if command == "start":
+  #    game.start()
+  #server.stop()
 
 
 if __name__=="__main__":
