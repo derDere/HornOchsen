@@ -8,6 +8,7 @@ import select
 
 class MainWin:
   def __init__(self):
+    self.tick = 0
     self.sock = None
     self.playFrame = None
     self.root = Tk()
@@ -28,12 +29,17 @@ class MainWin:
   
   def timer(self):
     if self.playFrame != None:
-      self.playFrame.update()
-    self.root.after(100, self.timer)
+      if (self.tick % 10) == 0:
+        self.playFrame.update()
+      self.playFrame.animate()
+    self.tick += 1
+    self.root.after(1, self.timer)
   
   def run(self):
     self.timer()
     self.root.mainloop()
+    if self.playFrame != None:
+      self.playFrame.running = False
 
 
 def main(argv):

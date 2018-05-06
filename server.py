@@ -24,14 +24,20 @@ class Game():
       print("You can't play alone!")
       return
     print("Starting Game with %i players." % len(self.players))
+    self.hasStarted = True
+    threading.Thread(target = self.play).start()
+  
+  def GiveCards(self):
+    print("Clear Table")
+    for p in self.players:
+      p.sock.send("rA000000000".encode())
     print("Shuffeling deck.")
     deck = []
     for card in range(0,104):
       deck.append(Card(card+1))
     while len(deck) > 0:
       index = random.randint(1000,9999) % len(deck)
-      self.cards.append(deck[index])
-      del deck[index]
+      self.cards.append(deck.pop(index))
     print("Giving cards to players.")
     for p in self.players:
       for i in range(10):
@@ -40,74 +46,87 @@ class Game():
     print("Creating stacks.")
     for s in self.stacks.keys():
       self.stacks[s].append(self.cards.pop())
-    self.hasStarted = True
-    threading.Thread(target = self.play).start()
   
   def play(self):
     print("Game started.")
-    while True:
-      print("Choosing Phase ...")
-      choosingPhase = True
-      while choosingPhase:
-        choosingPhase = False
+    gameRunning = True
+    while gameRunning:
+      self.GiveCards()
+      oneRound = True
+      while oneRound:
+        print("Choosing Phase ...")
+        choosingPhase = True
+        while choosingPhase:
+          choosingPhase = False
+          for p in self.players:
+            if p.choosen == -1:
+              choosingPhase = True
+          time.sleep(0.5)
+        time.sleep(3) # Last time to choose
         for p in self.players:
-          if p.choosen == -1:
-            choosingPhase = True
-        time.sleep(0.5)
-      time.sleep(3) # Last time to choose
+          p.isChoosing = False
+        print("Stacking Phase ...")
+        pL = []
+        pL += self.players
+        pL = sorted(pL, key=lambda player: player.hand[player.choosen].card)
+        stackingPhase = True
+        while stackingPhase:
+          cP = pL.pop(0) # currentPlayer
+          playerCard = cP.hand[cP.choosen]
+          delta = {}
+          for s in self.stacks.keys():
+            lastC = last(self.stacks[s])
+            if lastC.card < playerCard.card:
+              d = playerCard.card - lastC.card
+              delta[s] = d
+          stack = -1
+          TakeStack = False
+          if len(delta) <= 0:
+            cP.isStacking = True
+            while cP.stack == -1:
+              time.sleep(0.5)
+            stack = cP.stack
+            cP.isStacking = False
+            TakeStack = True
+          else:
+            smallestDelta = 200
+            smallestStack = -1
+            for s in delta.keys():
+              if delta[s] < smallestDelta:
+                smallestDelta = delta[s]
+                smallestStack = s
+            stack = smallestStack
+          del cP.hand[cP.choosen]
+          self.stacks[stack].append(playerCard)
+          if (len(self.stacks[stack]) >= 6) or TakeStack:
+            while len(self.stacks[stack]) > 1:
+              cP.points.append(self.stacks[stack].pop(0))
+          if len(pL) <= 0:
+            stackingPhase = False
+          time.sleep(0.5)
+        for p in self.players:
+          p.stack = -1
+          p.choosen = -1
+          p.isChoosing = True
+        if len(self.players[0].hand) <= 0:
+          oneRound = False
+      print("Round End")
       for p in self.players:
-        p.isChoosing = False
-      print("Stacking Phase ...")
-      pL = []
-      pL += self.players
-      pL = sorted(pL, key=lambda player: player.hand[player.choosen].card)
-      stackingPhase = True
-      while stackingPhase:
-        cP = pL.pop(0) # currentPlayer
-        playerCard = cP.hand[cP.choosen]
-        delta = {}
-        for s in self.stacks.keys():
-          lastC = last(self.stacks[s])
-          if lastC.card < playerCard.card:
-            d = playerCard.card - lastC.card
-            delta[s] = d
-        stack = -1
-        TakeStack = False
-        if len(delta) <= 0:
-          cP.isStacking = True
-          while cP.stack == -1:
-            time.sleep(0.5)
-          stack = cP.stack
-          cP.isStacking = False
-          TakeStack = True
-        else:
-          smallestDelta = 200
-          smallestStack = -1
-          for s in delta.keys():
-            if delta[s] < smallestDelta:
-              smallestDelta = delta[s]
-              smallestStack = s
-          stack = smallestStack
-        del cP.hand[cP.choosen]
-        self.stacks[stack].append(playerCard)
-        if (len(self.stacks[stack]) >= 6) or TakeStack:
-          while len(self.stacks[stack]) > 1:
-            cP.points.append(self.stacks[stack].pop(0))
-        if len(pL) <= 0:
-          stackingPhase = False
-        time.sleep(0.5)
-      for p in self.players:
-        p.stack = -1
-        p.choosen = -1
-        p.isChoosing = True
+        p.rounds.append(p.getPoints())
+        p.points = []
+        if p.getGamePoints() >= 66:
+          gameRunning = False
+    print("Game End")
 
 
 class Player():
   def __init__(self, sock, addr, num):
     self.num = num
+    self.host = False
     self.sock = sock
     self.hand = []
     self.points = []
+    self.rounds = []
     self.choosen = -1
     self.stack = -1
     self.isChoosing = False
@@ -117,6 +136,12 @@ class Player():
     sum = 0
     for card in self.points:
       sum += card.value
+    return sum
+  
+  def getGamePoints(self):
+    sum = 0
+    for r in self.rounds:
+      sum += r
     return sum
 
 
@@ -160,8 +185,11 @@ class ThreadedServer(object):
     print("New Player %s joined." % str(address))
     player = Player(client, address, len(self.game.players) + 1)
     self.game.players.append(player)
+    msgWho = "lI%02i%i000000" % (player.num, int(player.host))
+    client.send(msgWho.encode())
+    print("sended: %s" % msgWho)
     while self.running:
-      time.sleep(0.2)
+      time.sleep(0.1)
       if self.game.hasStarted:
         #Updating Player cards
         for s in self.game.stacks.keys():
@@ -172,7 +200,7 @@ class ThreadedServer(object):
             client.send(msg)
         for i in range(len(player.hand)):
           x = (i * 100)
-          y = 390 + 210
+          y = 600
           if i == player.choosen:
             y -= 60
           msg = CardPosMsg(player.hand[i].card,x,y,True).encode()
