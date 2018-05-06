@@ -35,6 +35,7 @@ class Game():
     deck = []
     for card in range(0,104):
       deck.append(Card(card+1))
+    self.cards = []
     while len(deck) > 0:
       index = random.randint(1000,9999) % len(deck)
       self.cards.append(deck.pop(index))
@@ -116,6 +117,8 @@ class Game():
         p.points = []
         if p.getGamePoints() >= 66:
           gameRunning = False
+      for s in self.stacks:
+        self.stacks[s] = []
     print("Game End")
 
 
@@ -207,6 +210,7 @@ class ThreadedServer(object):
           client.send(msg)
         oponent_index = 0
         for p in self.game.players:
+          client.send(("lS%02i%03i0000" % (p.num, p.getGamePoints())).encode())
           if p != player:
             if p.choosen != -1:
               x = (oponent_index * 110) + ((1000 - (((len(self.game.players) - 1) * 110) - 10)) / 2)

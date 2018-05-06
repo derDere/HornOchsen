@@ -101,19 +101,28 @@ class Card():
         self.y = -150
       change = True
     if self.x < self.x_go:
-      self.x += 2
+      jump = self.x_go - self.x
+      if jump > 2: jump = 2
+      self.x += jump
       change = True
     if self.x > self.x_go:
-      self.x -= 2
+      jump = self.x - self.x_go
+      if jump > 2: jump = 2
+      self.x -= jump
       change = True
     if self.y < self.y_go:
-      self.y += 2*self.y_step
+      jump = self.y_go - self.y
+      if jump > (2*self.y_step): jump = (2*self.y_step)
+      self.y += jump
       change = True
     if self.y > self.y_go:
-      self.y -= 2*self.y_step
+      jump = self.y - self.y_go
+      if jump > (2*self.y_step): jump = (2*self.y_step)
+      self.y -= jump
       change = True
     if change:
-      self.btn.place(x=self.x, y=self.y, width=100, height=150)
+      #print("moved")
+      self.btn.place(x=round(self.x), y=round(self.y), width=100, height=150)
   
   def hide(self):
     self.hidden = True
@@ -135,12 +144,26 @@ class PlayFrame():
     self.pointLab.place(x=880, y=60, height=20, width=100)
     self.playerLab = Label(self.frame, text="...", font=MEDIUM_FONT, bg="#007F00", fg="white")
     self.playerLab.place(x=20, y=60, height=30, width=100)
+    self.scoreTable = Frame(self.frame, bg="#005F00")
+    self.scoreTable.place(x=0,y=95,height=200,width=140)
+    Label(self.scoreTable, text="Player", font=SMALL_FONT, fg="white", bg="#005F00").place(x=0,y=0,height=20,width=70)
+    Label(self.scoreTable, text="Points", font=SMALL_FONT, fg="white", bg="#005F00").place(x=70,y=0,height=20,width=70)
     self.cards = {}
     self.lastMsg = None
     self.msgs = []
     self.running = True
-    self.checks = {}
+    self.scores = {}
+    self.myPlayNumber = -1
     threading.Thread(target = self.read).start()    
+  
+  def addScoreLab(self, player):
+    backColor = "#005F00"
+    if player == self.myPlayNumber: backColor = "#003F00"
+    lab1 = Label(self.scoreTable, text="P%2i" % player, fg="white", bg=backColor, font=SMALL_FONT)
+    lab2 = Label(self.scoreTable, text="0", fg="white", bg=backColor, font=SMALL_FONT)
+    self.scores[player] = lab2
+    lab1.place(x=0,y=20*player,width=70,height=20)
+    lab2.place(x=70,y=20*player,width=70,height=20)
   
   def read(self):
     while self.running:
@@ -195,6 +218,7 @@ class PlayFrame():
           hostStr = ""
           if host: hostStr = " (host)"
           self.playerLab.configure(text="Player %i%s" % (myP, hostStr))
+          self.myPlayNumber = myP
         elif msg[1] == "p":
           csP = int(msg[2:4])
           self.infoLab.configure(text="Player %i is stacking ..." % csP)
@@ -205,6 +229,12 @@ class PlayFrame():
           self.infoLab.configure(text="Choose your card.")
         elif msg[1] == "s":
           self.infoLab.configure(text="Choose your stack.")
+        elif msg[1] == "S":
+          sP = int(msg[2:4])
+          score = int(msg[4:7])
+          if not sP in self.scores:
+            self.addScoreLab(sP)
+          self.scores[sP].configure(text="%i" % score)
         elif msg[1] == "0":
           self.infoLab.configure(text="")
     #if cardMoved:
