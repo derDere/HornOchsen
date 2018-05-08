@@ -1,6 +1,7 @@
 import socket
 import select
 import threading
+import traceback
 import time
 from card_calc import *
 import random
@@ -15,6 +16,7 @@ class Card():
 class Game():
   def __init__(self):
     self.playerMax = 10
+    self.botCount = 0
     self.hasStarted = False
     self.players = []
     self.cards = []
@@ -153,11 +155,43 @@ class Game():
     exit()
 
 
+class BotSocket:
+  def __init__(self, player, game):
+    self.me = player
+    self.game = game
+    self.playerCount = 0
+    self.running = True
+  
+  def send(self, *args):
+    # No thing to do here ;)
+    pass
+  
+  def close(self):
+    self.running = False
+  
+  def work(self):
+    # Player leave handling
+    if len(self.game.players) < self.playerCount:
+      print("Bot closed: missing player!")
+      return False
+    # Game handling
+    if self.game.hasStarted:
+      print("Bot work")
+    time.sleep(1)
+    # running handling
+    if self.running and not self.game.closed:
+      return True
+    else:
+      return False
+
+
 class Player():
   def __init__(self, sock, addr, num):
     self.num = num
     self.host = False
     self.sock = sock
+    self.addr = addr
+    self.isBot = False
     self.hand = []
     self.points = []
     self.rounds = []
@@ -205,6 +239,7 @@ class ThreadedServer(object):
 
   def listen(self):
     print("Listening to port:%i" % self.port)
+    print("Waiting for %i players ..." % (self.game.playerMax - self.game.botCount))
     self.sock.listen(5)
     while self.running:
       if self.game.closed:
@@ -222,25 +257,49 @@ class ThreadedServer(object):
     self.sock.close()
 
   def listenToClient(self, client, address):
+    # Bot Handling
+    if type(client) == BotSocket:
+      while client.work():
+        time.sleep(0.2)
+      return
+    # Player Handling
     try:
+      # Check max players
       if self.game.playerMax <= len(self.game.players):
         client.send("full0000000".encode())
         client.close()
         return
+      # Create Player
       print("New Player %s joined." % str(address))
       player = Player(client, address, len(self.game.players) + 1)
       self.game.players.append(player)
       msgWho = "lI%02i%i000000" % (player.num, int(player.host))
       client.send(msgWho.encode())
       print("sended: %s" % msgWho)
+      # Creating bots
+      if len(self.game.players) >= (self.game.playerMax - self.game.botCount):
+        for i in range(self.game.botCount):
+          bot = Player(None, "bot%i" % i, len(self.game.players) + 1)
+          bot.sock = BotSocket(bot, self.game)
+          bot.isBot = True
+          self.game.players.append(bot)
+          print("Add Bot%i to game." % i)
+        for bot in self.game.players:
+          if bot.isBot:
+            bot.playerCount = len(self.game.players)
+            threading.Thread(target = self.listenToClient, args = (bot.sock,bot.addr)).start()
+      # Starting Game
       if len(self.game.players) >= self.game.playerMax:
         self.game.start()
+      # Running Game
       while self.running:
+        # Game stop handling
         if self.game.closed or (len(self.game.players) < self.game.startedWith):
           self.running = False
           client.close()
           break
         time.sleep(0.1)
+        # Game Handling
         if self.game.hasStarted:
           #Updating Player cards
           for s in self.game.stacks.keys():
@@ -328,6 +387,7 @@ class ThreadedServer(object):
         #  return False
     except:
       print("Client Error (%s):\n%s" % (str(address), sys.exc_info()[0]))
+      print(traceback.print_exc())
     client.close()
     self.game.players.remove(player)
     self.game.closed = True
@@ -341,21 +401,26 @@ def serverWork(port, game):
   server.listen()  
 
 
+def argOf(argv, index, default=0, type=str):
+  try:
+    val = argv[index]
+    result = type(val)
+    return result
+  except:
+    return default
+
+
 def main(argv):
   global server
-  port_num = 8080
-  playerCount = 10
-  if len(argv) > 0:
-    try:
-      intVal = int(argv[0])
-      if intVal > 10:
-        print("The player maximum is 10!")
-        return
-      playerCount = intVal
-    except:
-      pass
+  playerCount = argOf(argv, 0, 10, int)
+  port_num = argOf(argv, 1, 8080, int)
+  botCount = argOf(argv, 2, 0, int)
+  if playerCount > 10:
+    print("The player maximum is 10!")
+    return
   game = Game()
   game.playerMax = playerCount
+  game.botCount = botCount
   serverWork(port_num, game)
   #threading.Thread(target = serverWork, args = (port_num, game)).start()
   #command = None

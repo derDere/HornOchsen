@@ -1,7 +1,9 @@
+import os
 import socket
 import select
 import time
 import threading
+import traceback
 from card_calc import *
 from tkinter import *
 
@@ -186,6 +188,7 @@ class PlayFrame():
               self.lastMsg = msg
         time.sleep(0.001)
     except:
+      print(traceback.print_exc())
       self.msgs = ["closed"]
   
   def animate(self):
@@ -294,37 +297,112 @@ class PlayFrame():
     print("Clicked on %i" % sender.card)
     self.sock.send(("c%03i0000000" % sender.card).encode())
 
+
+class DiffiSpinbox(Spinbox):
+  def __init__(self, *args, **keywords):
+    super().__init__(*args, **keywords)
+    self.lastSelection = "Normal"
+    self.difficulty = StringVar()
+    self.difficulty.trace("w", self.validate)
+    self.difficulties = {"Easy":2, "Normal":5, "Hard":10}
+    super().configure(values=["Easy","Normal","Hard"], textvariable=self.difficulty)
+    self.difficulty.set("Normal")
+  
+  def validate(self, *args):
+    val = self.difficulty.get()
+    if not val in self.difficulties:
+      self.difficulty.set(self.lastSelection)
+      return
+    self.lastSelection = val
+  
+  def getPlayerCount(self):
+    diffi = self.difficulty.get()
+    if diffi in self.difficulties:
+      return self.difficulties[diffi]
+    return 5
+
+
+class PlayerCountSpinnbox(Spinbox):
+  def __init__(self, *args, **keywords):
+    super().__init__(*args, **keywords)
+    self.lastInput = "5 Players"
+    self.playerCount = StringVar()
+    self.playerCount.trace("w", self.validate)
+    self.playerCountValues = {}
+    self.values = []
+    for N in range(2,10+1):
+      self.playerCountValues["%i Players" % N] = N
+      self.values.append("%i Players" % N)
+    super().configure(values=self.values, textvariable=self.playerCount)
+    self.playerCount.set("5 Players")
+  
+  def validate(self, *args):
+    val = self.playerCount.get()
+    if not val in self.playerCountValues:
+      self.playerCount.set(self.lastSelection)
+      return
+    self.lastSelection = val
+  
+  def getPlayerCount(self):
+    pC = self.playerCount.get()
+    if pC in self.playerCountValues:
+      return self.playerCountValues[pC]
+    return 10
+
+
 class StartFrame():
   def __init__(self, parent, socketAction):
     self.socketAction = socketAction
     #Main Frame
-    self.frame = Frame(parent, width=200, height=230, bg="silver")
+    self.frame = Frame(parent, width=200, height=270, bg="#007F00")
     #Play Button
-    self.pBtn = Button(self.frame, text="Play", font=FONT, command=self._PlayBtnClick)
+    self.pBtn = Button(self.frame, text="Play", font=FONT, command=self.PlayBtnClick)
     self.pBtn.place(x=20, y=20, width=160, height=50)
+    #Difficulty DropDown
+    self.diffiSpin = DiffiSpinbox(self.frame)
+    self.diffiSpin.place(x=20, y=70, width=160, height=20)
     #Host Button
-    self.hBtn = Button(self.frame, text="Host", font=FONT, command=self._PlayBtnClick)
-    self.hBtn.place(x=20, y=60, width=160, height=50)
+    self.hBtn = Button(self.frame, text="Host", font=FONT, command=self.HostBtnClick)
+    self.hBtn.place(x=20, y=100, width=160, height=50)
     #PlayerCount Textbox
-    self.pCount = StringVar()
-    self.pCount.set("10")
-    self.pcTxb = Entry(self.frame, textvariable=self.pCount)
-    self.pcTxb.place(x=20, y=110, width=160, height=20)
+    self.pcSpin = PlayerCountSpinnbox(self.frame)
+    self.pcSpin.place(x=20, y=150, width=160, height=20)
     #Join Button
-    self.jBtn = Button(self.frame, text="Join", font=FONT, command=self._PlayBtnClick)
-    self.jBtn.place(x=20, y=140, width=160, height=50)
+    self.jBtn = Button(self.frame, text="Join", font=FONT, command=self.JoinBtnClick)
+    self.jBtn.place(x=20, y=180, width=160, height=50)
     #IP Textbox
     self.ip = StringVar()
     self.ip.set("127.0.0.1")
     self.ipTxb = Entry(self.frame, textvariable=self.ip)
-    self.ipTxb.place(x=20, y=190, width=160, height=20)
+    self.ipTxb.place(x=20, y=230, width=160, height=20)
   
   def place(self):
-    self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=200, height=230)
+    self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=200, height=270)
   
-  def _PlayBtnClick(self):
+  def PlayBtnClick(self):
+    print(self.diffiSpin.getPlayerCount())
+  
+  def HostBtnClick(self):
+    print("Starting Server ...")
+    PlayerCount = self.pcSpin.getPlayerCount()
+    self.StartAsync("python3 server.py %i" % PlayerCount)
+    time.sleep(0.5)
+    self.JoinAndStart('127.0.0.1', 8080)
+  
+  def JoinBtnClick(self):
+    port = 8080
+    host = self.ip.get()
+    self.JoinAndStart(host, port)
+  
+  def StartAsync(self, command):
+    threading.Thread(target = self.__AsyncCommand, args=(command,)).start()
+  
+  def __AsyncCommand(self, command):
+    os.system(command)
+  
+  def JoinAndStart(self, Host, Port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = (self.ip.get(), 8080)
+    server_address = (Host, Port)
     print('connecting to %s port %s' % server_address)
     sock.connect(server_address)
     self.frame.place_forget()
