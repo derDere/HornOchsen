@@ -4,6 +4,7 @@ import select
 import time
 import locale
 import server
+import json
 import threading
 import traceback
 from card_calc import *
@@ -20,10 +21,26 @@ crown_img = None
 class Language():
   def __init__(self):
     self.current = locale.getdefaultlocale()[0][:2]
-    #load labels
+    path = "lang/%s.json" % self.current
+    if not os.path.isfile(path):
+      self.current = "en"
+      path = "lang/%s.json" % self.current
+    try:
+      file = open(path, 'r')
+      jj = file.read()
+      file.close()
+      self.lib = json.loads(jj)
+    except:
+      self.lib = {}
   
-  def lab(self,key):
-    pass
+  def lab(self, key, *args):
+    if key in self.lib:
+      return self.lib[key] % args
+    else:
+      print(">>> LANG.Key not found: %s" % key)
+      return key
+
+LANG = Language()
 
 
 class Card():
@@ -57,8 +74,8 @@ class Card():
     #print("Flipp Down")
     self.f = False
     text = ""
-    if self.card > 109:
-      text = "Player %i" % (self.card - 109)
+    #if self.card > 109:
+    #  text = "Player %i" % (self.card - 109)
     self.btn.configure(image=card_bg, text=text, font=SMALL_FONT, compound=TOP)
   
   def flippUp(self):
@@ -157,19 +174,19 @@ class PlayFrame():
     self.finishAction = finishAction
     #height calculation: 80 + 10 + 40 + (4 * 55) + 150 + 30 + 150 = 710
     self.frame = Frame(parent, width=1000, height=710, bg="#007F00")
-    self.infoLab = Label(self.frame, text="waiting ...", font=FONT, bg="#007F00", fg="white")
+    self.infoLab = Label(self.frame, text=LANG.lab('waiting'), font=FONT, bg="#007F00", fg="white")
     self.infoLab.place(x=265, y=90, height=40, width=490)
-    self.pointLab = Label(self.frame, text="Points: 0", font=SMALL_FONT, bg="#007F00", fg="white")
+    self.pointLab = Label(self.frame, text=LANG.lab('points', 0), font=SMALL_FONT, bg="#007F00", fg="white")
     self.pointLab.place(x=880, y=80, height=20, width=100)
-    self.playerLab = Label(self.frame, text="...", font=MEDIUM_FONT, bg="#007F00", fg="white")
+    self.playerLab = Label(self.frame, text=LANG.lab('...'), font=MEDIUM_FONT, bg="#007F00", fg="white")
     self.playerLab.place(x=20, y=80, height=30, width=100)
     self.scoreTable = Frame(self.frame, bg="#005F00")
     self.scoreTable.place(x=0,y=115,height=220,width=140)
-    Label(self.scoreTable, text="Player", font=SMALL_FONT, fg="white", bg="#005F00").place(x=0,y=0,height=20,width=70)
-    Label(self.scoreTable, text="Points", font=SMALL_FONT, fg="white", bg="#005F00").place(x=70,y=0,height=20,width=70)
+    Label(self.scoreTable, text=LANG.lab('score.col.players'), font=SMALL_FONT, fg="white", bg="#005F00").place(x=0,y=0,height=20,width=70)
+    Label(self.scoreTable, text=LANG.lab('score.col.points'), font=SMALL_FONT, fg="white", bg="#005F00").place(x=70,y=0,height=20,width=70)
     self.crown = Label(self.frame, image=crown_img)
     self.crown.place(x=-20,y=-20,width=20,height=20)
-    self.leaveBtn = Button(self.frame, text="leave game", font=FONT, command=self.finishAction)
+    self.leaveBtn = Button(self.frame, text=LANG.lab('leave game'), font=FONT, command=self.finishAction)
     self.cards = {}
     self.lastMsg = None
     self.msgs = []
@@ -182,8 +199,8 @@ class PlayFrame():
   def addScoreLab(self, player):
     backColor = "#005F00"
     if player == self.myPlayNumber: backColor = "#003F00"
-    lab1 = Label(self.scoreTable, text="P%2i" % player, fg="white", bg=backColor, font=SMALL_FONT)
-    lab2 = Label(self.scoreTable, text="0", fg="white", bg=backColor, font=SMALL_FONT)
+    lab1 = Label(self.scoreTable, text=LANG.lab('score.name', player), fg="white", bg=backColor, font=SMALL_FONT)
+    lab2 = Label(self.scoreTable, text=LANG.lab('score.points', 0), fg="white", bg=backColor, font=SMALL_FONT)
     self.scores[player] = lab2
     lab1.place(x=0,y=20*player,width=70,height=20)
     lab2.place(x=70,y=20*player,width=70,height=20)
@@ -219,12 +236,12 @@ class PlayFrame():
       #print(msg)
       if msg[0:4] == "full":
         self.winner == -20
-        self.infoLab.configure(text="Sorry the game is full!")
+        self.infoLab.configure(text=LANG.lab('full'))
         self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
         return
       elif msg == "":
         self.winner == -30
-        self.infoLab.configure(text="Sorry the game has closed!")
+        self.infoLab.configure(text=LANG.lab('closed'))
         self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
         return
       elif msg[0] == 'c':
@@ -249,38 +266,41 @@ class PlayFrame():
             self.cards[c].hide()
       elif msg[0] == "l":
         if msg[1] == "w":
-          self.infoLab.configure(text="waiting ...")
+          self.infoLab.configure(text=LANG.lab('waiting'))
         elif msg[1] == "I":
           myP = int(msg[2:4])
           host = bool(msg[4] == "1")
           hostStr = ""
           if host: hostStr = " (host)"
-          self.playerLab.configure(text="Player %i%s" % (myP, hostStr))
+          self.playerLab.configure(text=LANG.lab('player.name', myP, hostStr))
           self.myPlayNumber = myP
         elif msg[1] == "f":
           fP = int(msg[2:4])
-          self.crown.place(x=140,y=95+(20*fP),width=20,height=20)
+          self.crown.place(x=140,y=115+(20*fP),width=20,height=20)
         elif msg[1] == "F":
           fP = int(msg[2:4])
-          self.infoLab.configure(text="Player %i winns the Game!" % fP)
+          if fP == self.myPlayNumber:
+            self.infoLab.configure(text=LANG.lab('winner.you'))
+          else:
+            self.infoLab.configure(text=LANG.lab('winner', fP))
           self.winner = fP
           self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
         elif msg[1] == "p":
           csP = int(msg[2:4])
-          self.infoLab.configure(text="Player %i is stacking ..." % csP)
+          self.infoLab.configure(text=LANG.lab('stacking', csP))
         elif msg[1] == "P":
           points = int(msg[2:5])
-          self.pointLab.configure(text="Points: %i" % points)
+          self.pointLab.configure(text=LANG.lab('points', points))
         elif msg[1] == "c":
-          self.infoLab.configure(text="Pick your card.")
+          self.infoLab.configure(text=LANG.lab('pick'))
         elif msg[1] == "s":
-          self.infoLab.configure(text="Choose your stack.")
+          self.infoLab.configure(text=LANG.lab('stack'))
         elif msg[1] == "S":
           sP = int(msg[2:4])
           score = int(msg[4:7])
           if not sP in self.scores:
             self.addScoreLab(sP)
-          self.scores[sP].configure(text="%i" % score)
+          self.scores[sP].configure(text=LANG.lab('score.points', score))
         elif msg[1] == "0":
           self.infoLab.configure(text="")
   
@@ -295,12 +315,15 @@ class PlayFrame():
 class DiffiSpinbox(Spinbox):
   def __init__(self, *args, **keywords):
     super().__init__(*args, **keywords)
-    self.lastSelection = "Normal"
+    self.lastSelection = LANG.lab('normal')
     self.difficulty = StringVar()
     self.difficulty.trace("w", self.validate)
-    self.difficulties = {"Easy":2, "Normal":5, "Hard":10}
-    super().configure(values=["Easy","Normal","Hard"], textvariable=self.difficulty)
-    self.difficulty.set("Normal")
+    self.difficulties = {}
+    self.difficulties[LANG.lab('easy')] = 2
+    self.difficulties[LANG.lab('normal')] = 5
+    self.difficulties[LANG.lab('hard')] = 10
+    super().configure(values=[LANG.lab('easy'),LANG.lab('normal'),LANG.lab('hard')], textvariable=self.difficulty)
+    self.difficulty.set(LANG.lab('normal'))
   
   def validate(self, *args):
     val = self.difficulty.get()
@@ -319,16 +342,16 @@ class DiffiSpinbox(Spinbox):
 class PlayerCountSpinnbox(Spinbox):
   def __init__(self, *args, **keywords):
     super().__init__(*args, **keywords)
-    self.lastInput = "5 Players"
+    self.lastInput = LANG.lab('host.players', 5)
     self.playerCount = StringVar()
     self.playerCount.trace("w", self.validate)
     self.playerCountValues = {}
     self.values = []
     for N in range(2,10+1):
-      self.playerCountValues["%i Players" % N] = N
-      self.values.append("%i Players" % N)
+      self.playerCountValues[LANG.lab('host.players', N)] = N
+      self.values.append(LANG.lab('host.players', N))
     super().configure(values=self.values, textvariable=self.playerCount)
-    self.playerCount.set("5 Players")
+    self.playerCount.set(LANG.lab('host.players', 5))
   
   def validate(self, *args):
     val = self.playerCount.get()
@@ -350,19 +373,19 @@ class StartFrame():
     #Main Frame
     self.frame = Frame(parent, width=200, height=270, bg="#007F00")
     #Play Button
-    self.pBtn = Button(self.frame, text="Play", font=FONT, command=self.PlayBtnClick)
+    self.pBtn = Button(self.frame, text=LANG.lab("play"), font=FONT, command=self.PlayBtnClick)
     self.pBtn.place(x=20, y=20, width=160, height=50)
     #Difficulty DropDown
     self.diffiSpin = DiffiSpinbox(self.frame)
     self.diffiSpin.place(x=20, y=70, width=160, height=20)
     #Host Button
-    self.hBtn = Button(self.frame, text="Host", font=FONT, command=self.HostBtnClick)
+    self.hBtn = Button(self.frame, text=LANG.lab("host"), font=FONT, command=self.HostBtnClick)
     self.hBtn.place(x=20, y=100, width=160, height=50)
     #PlayerCount Textbox
     self.pcSpin = PlayerCountSpinnbox(self.frame)
     self.pcSpin.place(x=20, y=150, width=160, height=20)
     #Join Button
-    self.jBtn = Button(self.frame, text="Join", font=FONT, command=self.JoinBtnClick)
+    self.jBtn = Button(self.frame, text=LANG.lab("join"), font=FONT, command=self.JoinBtnClick)
     self.jBtn.place(x=20, y=180, width=160, height=50)
     #IP Textbox
     self.ip = StringVar()
