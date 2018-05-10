@@ -369,7 +369,7 @@ class ThreadedServer(object):
               oponent_index += 1
           for i in range(len(player.points)):
             x = 880
-            y = 80 + (13 * i)
+            y = 100 + (13 * i)
             msg = CardPosMsg(player.points[i].card,x,y,True).encode()
             client.send(msg)
           someOneStacks = False
