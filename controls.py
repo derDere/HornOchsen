@@ -2,6 +2,7 @@ import os
 import socket
 import select
 import time
+import locale
 import threading
 import traceback
 from card_calc import *
@@ -13,6 +14,16 @@ FONT = ("Arial",25)
 card_bg = None
 card_img = None
 crown_img = None
+
+
+class Language():
+  def __init__(self):
+    self.current = locale.getdefaultlocale()[0][:2]
+    #load labels
+  
+  def lab(self,key):
+    pass
+
 
 class Card():
   def __init__(self, parent, card):

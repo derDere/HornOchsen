@@ -397,10 +397,13 @@ class ThreadedServer(object):
               if msg[0] == "c":
                 card = int(msg[1:4])
                 if player.isChoosing:
-                  for i in range(len(player.hand)):
-                    if player.hand[i].card == card:
-                      player.choosen = i
-                      print("%s has choosen hand %i" % (str(address), i))
+                  if len(player.hand) <= 1:
+                    player.choosen = 0
+                  else:
+                    for i in range(len(player.hand)):
+                      if player.hand[i].card == card:
+                        player.choosen = i
+                        print("%s has choosen hand %i" % (str(address), i))
                 elif player.isStacking:
                   for s in self.game.stacks.keys():
                     for sCard in self.game.stacks[s]:
