@@ -176,7 +176,6 @@ class BotSocket:
   
   def work(self):
     # Player leave handling
-    print(".")
     if len(self.game.players) < self.playerCount:
       print("Bot closed: missing player!")
       return False
@@ -389,6 +388,9 @@ class ThreadedServer(object):
               client.send("l0000000000".encode()) #Send msg: (empty string)
           client.send(("lP%03i000000" % player.getPoints()).encode())
           #Reading Player Input
+          if player.isChoosing:
+            if len(player.hand) <= 1:
+              player.choosen = 0
           r = True
           while r:
             r,w,e = select.select([client],[],[],0.1)
@@ -399,13 +401,10 @@ class ThreadedServer(object):
               if msg[0] == "c":
                 card = int(msg[1:4])
                 if player.isChoosing:
-                  if len(player.hand) <= 1:
-                    player.choosen = 0
-                  else:
-                    for i in range(len(player.hand)):
-                      if player.hand[i].card == card:
-                        player.choosen = i
-                        print("%s has choosen hand %i" % (str(address), i))
+                  for i in range(len(player.hand)):
+                    if player.hand[i].card == card:
+                      player.choosen = i
+                      print("%s has choosen hand %i" % (str(address), i))
                 elif player.isStacking:
                   for s in self.game.stacks.keys():
                     for sCard in self.game.stacks[s]:
@@ -416,18 +415,6 @@ class ThreadedServer(object):
                   print("%s no action." % str(address))
         else:
           client.send("lw000000000".encode()) #Send msg: waiting ...
-        #data = client.recv(size)
-        #if data:
-        #  # Set the response to echo back the recieved data
-        #  print("received from client %s: %s" % (str(address), data))
-        #  response = data
-        #  client.send(response)
-        #else:
-        #  raise error('Client disconnected')
-        #except:
-        #  print("failed")
-        #  client.close()
-        #  return False
     except:
       print("Client Error (%s):\n%s" % (str(address), sys.exc_info()[0]))
       print(traceback.print_exc())

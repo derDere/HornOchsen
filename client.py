@@ -70,6 +70,7 @@ class MainWin:
     self.root.mainloop()
     if self.playFrame != None:
       self.playFrame.running = False
+    self.sock.close()
 
 
 def main(argv):
