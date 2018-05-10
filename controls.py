@@ -3,6 +3,7 @@ import socket
 import select
 import time
 import locale
+import server
 import threading
 import traceback
 from card_calc import *
@@ -375,14 +376,14 @@ class StartFrame():
   def PlayBtnClick(self):
     print("Starting Server ...")
     PlayerCount = self.pcSpin.getPlayerCount()
-    self.StartAsync("python3 server.py %i - %i" % (PlayerCount, (PlayerCount - 1)))
+    self.StartAsync(PlayerCount, 8080, (PlayerCount - 1))
     time.sleep(0.5)
     self.JoinAndStart('127.0.0.1', 8080)
   
   def HostBtnClick(self):
     print("Starting Server ...")
     PlayerCount = self.pcSpin.getPlayerCount()
-    self.StartAsync("python3 server.py %i" % PlayerCount)
+    self.StartAsync(PlayerCount, 8080, 0)
     time.sleep(0.5)
     self.JoinAndStart('127.0.0.1', 8080)
   
@@ -391,11 +392,11 @@ class StartFrame():
     host = self.ip.get()
     self.JoinAndStart(host, port)
   
-  def StartAsync(self, command):
-    threading.Thread(target = self.__AsyncCommand, args=(command,)).start()
+  def StartAsync(self, playerCount, port, botCount):
+    threading.Thread(target = self.__AsyncCommand, args=(playerCount, port, botCount)).start()
   
-  def __AsyncCommand(self, command):
-    os.system(command)
+  def __AsyncCommand(self, playerCount, port, botCount):
+    server.main([playerCount, port, botCount])
   
   def JoinAndStart(self, Host, Port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
