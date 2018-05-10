@@ -6,20 +6,43 @@ import sys
 import select
 
 
+class RuleWin:
+  def __init__(self, parent):
+    self.root = Toplevel(parent)
+    self.root.title("Rules")
+    self.root.geometry("400x300")
+    self.frame = RuleFrame(self.root)
+    self.frame.pack()
+
+
 class MainWin:
   def __init__(self):
     self.tick = 0
     self.sock = None
     self.playFrame = None
     self.root = Tk()
+    self.root.option_add('*tearOff', FALSE)
     self.root.title("Horn Ochsen")
     self.root.geometry("1000x710")
     self.frame = Frame(self.root, bg='#008F00')
-    #self.tbtn = Card(self.frame, 4, 1)
-    #self.tbtn.place(10,10,100,150)
+    self.menu = Menu(self.root, borderwidth=0, fg="white", bg='#006F00')
+    self.menu.add_command(label=LANG.lab("rules.title"), command=self.ruleBtn_Click)
+    self.menu.add_command(label=LANG.lab("leave game"), command=self.leaveGameBtn_Click)
+    self.root.config(menu=self.menu)
     self.startFrame = StartFrame(self.frame, self.socketAction)
     self.startFrame.place()
     self.frame.pack(fill=BOTH, expand=1)
+    self.ruleWin = None
+  
+  def leaveGameBtn_Click(self):
+    if self.playFrame != None:
+      self.returnToMainScreen()
+  
+  def ruleBtn_Click(self):
+    if self.ruleWin == None:
+      self.ruleWin = RuleWin(self.root)
+      self.root.wait_window(self.ruleWin.root)
+      self.ruleWin = None
   
   def socketAction(self, sock):
     self.sock = sock

@@ -2,7 +2,7 @@
   "waiting": "waiting ...",
   "points": "Points: %i",
   "...": "...",
-  "leave game": "leave game",
+  "leave game": "Leave Game",
   "score.name": "P%2i",
   "score.points": "%i",
   "score.col.players": "Player",
@@ -21,5 +21,7 @@
   "host.players": "%i Players",
   "host": "Host",
   "play": "Play",
-  "join": "Join"
+  "join": "Join",
+  "rules.title": "Rules",
+  "rules": ".........."
 }

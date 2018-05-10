@@ -21,5 +21,7 @@
   "host.players": "%i Spieler",
   "host": "Erstellen",
   "play": "Spielen",
-  "join": "Beitreten"
+  "join": "Beitreten",
+  "rules.title": "Regeln",
+  "rules": ".........."
 }

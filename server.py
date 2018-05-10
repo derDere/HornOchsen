@@ -1,3 +1,4 @@
+import sys
 import socket
 import select
 import threading
@@ -175,6 +176,7 @@ class BotSocket:
   
   def work(self):
     # Player leave handling
+    print(".")
     if len(self.game.players) < self.playerCount:
       print("Bot closed: missing player!")
       return False
@@ -215,7 +217,7 @@ class BotSocket:
           print("%s has picked stack %i" % (self.me.addr, stack))
     time.sleep(1)
     # running handling
-    if self.running and not self.game.closed:
+    if (self.running) and (not self.game.closed):
       return True
     else:
       return False
@@ -475,7 +477,6 @@ def main(argv):
 
 
 if __name__=="__main__":
-  import sys
   if len(sys.argv) > 1:
     main(sys.argv[1:])
   else:

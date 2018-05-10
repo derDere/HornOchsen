@@ -43,6 +43,18 @@ class Language():
 LANG = Language()
 
 
+class RuleFrame():
+  def __init__(self, parent):
+    self.frame = Frame(parent, bg='#007F00')
+    self.titleLab = Label(self.frame, text=LANG.lab('rules.title'), font=FONT, fg="white", bg="#007F00")
+    self.titleLab.place(x=10, y=10)
+    self.textLab = Label(self.frame, text=LANG.lab('rules'), font=SMALL_FONT, fg="white", bg="#007F00")
+    self.textLab.place(x=10, y=60)
+  
+  def pack(self):
+    self.frame.pack(fill=BOTH, expand=1)
+
+
 class Card():
   def __init__(self, parent, card):
     global card_img, card_bg
