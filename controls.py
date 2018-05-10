@@ -128,6 +128,8 @@ class Card():
   
   def hide(self):
     self.hidden = True
+    if self.y < 0:
+      self.y = -150
     self.btn.place_forget()
   
   def toTop(self):
@@ -202,7 +204,7 @@ class PlayFrame():
     while (len(self.msgs) > 0) and (self.winner == -10):
       msg = self.msgs.pop(0)
       self.lastMsg = msg
-      print(msg)
+      #print(msg)
       if msg[0:4] == "full":
         self.winner == -20
         self.infoLab.configure(text="Sorry the game is full!")
@@ -269,26 +271,6 @@ class PlayFrame():
           self.scores[sP].configure(text="%i" % score)
         elif msg[1] == "0":
           self.infoLab.configure(text="")
-    #if cardMoved:
-    #  #print("Sorting Cards")
-    #  cLs = {}
-    #  for c in self.cards:
-    #    x = self.cards[c].x_go
-    #    if not x in cLs:
-    #      cLs[x] = []
-    #    cLs[x].append(c)
-    #  for x in cLs:
-    #    if not x in self.checks:
-    #      self.checks[x] = str(cLs[x])
-    #    cLs[x] = sorted(cLs[x], key=lambda k: self.cards[k].y_go)
-    #  for x in cLs:
-    #    if str(cLs[x]) != self.checks[x]:
-    #      print("%s != %s" % (str(cLs[x]), self.checks[x]))
-    #      self.checks[x] = str(cLs[x])
-    #      for k in cLs[x]:
-    #        self.cards[k].toTop()
-    #except:
-    #  pass
   
   def place(self):
     self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=1000, height=710)
@@ -380,7 +362,11 @@ class StartFrame():
     self.frame.place(relx=0.5, rely=0.5, anchor=CENTER, width=200, height=270)
   
   def PlayBtnClick(self):
-    print(self.diffiSpin.getPlayerCount())
+    print("Starting Server ...")
+    PlayerCount = self.pcSpin.getPlayerCount()
+    self.StartAsync("python3 server.py %i - %i" % (PlayerCount, (PlayerCount - 1)))
+    time.sleep(0.5)
+    self.JoinAndStart('127.0.0.1', 8080)
   
   def HostBtnClick(self):
     print("Starting Server ...")

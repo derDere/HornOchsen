@@ -140,6 +140,10 @@ class Game():
         p.points = []
         if p.getGamePoints() >= 66:
           gameRunning = False
+      if gameRunning == False:
+        for p in self.players:
+          for o in self.players:
+            p.sock.send(("lS%02i%03i0000" % (o.num, o.getGamePoints())).encode())
       favoritPlayer = self.smallestPlayer()
       if favoritPlayer != -10:
         for p in self.players:
@@ -176,7 +180,39 @@ class BotSocket:
       return False
     # Game handling
     if self.game.hasStarted:
-      print("Bot work")
+      if self.me.isChoosing:
+        if self.me.choosen == -1:
+          time.sleep(random.uniform(0,3))
+          pick = None
+          smalestDelta = 1000
+          for i in range(len(self.me.hand)):
+            for s in self.game.stacks:
+              cardValue = self.me.hand[i].value
+              stackValue = last(self.game.stacks[s]).value
+              if stackValue < cardValue:
+                delta = cardValue - stackValue
+                if delta < smalestDelta:
+                  smalestDelta = delta
+                  pick = i
+          if pick == None:
+            pick = random.randint(0, len(self.me.hand)-1)
+          self.me.choosen = pick
+          print("%s has picked hand %i" % (self.me.addr, pick))
+      elif self.me.isStacking:
+        if self.me.stack == -1:
+          stack = None
+          smallestStack = 1000
+          for s in self.game.stacks:
+            sum = 0
+            for c in self.game.stacks[s]:
+              sum += c.value
+            if sum < smallestStack:
+              smallestStack = sum
+              stack = s
+          if stack == None:
+            stack = random.randint(0,3)
+          self.me.stack = stack
+          print("%s has picked stack %i" % (self.me.addr, stack))
     time.sleep(1)
     # running handling
     if self.running and not self.game.closed:
@@ -195,8 +231,6 @@ class Player():
     self.hand = []
     self.points = []
     self.rounds = []
-    if self.num == 1:
-      self.rounds.append(65)
     self.choosen = -1
     self.stack = -1
     self.isChoosing = False
@@ -241,14 +275,18 @@ class ThreadedServer(object):
     print("Listening to port:%i" % self.port)
     print("Waiting for %i players ..." % (self.game.playerMax - self.game.botCount))
     self.sock.listen(5)
+    conCount = 0
     while self.running:
       if self.game.closed:
         return
-      client, address = self.sock.accept()
-      if self.game.closed:
-        return
-      client.settimeout(60)
-      threading.Thread(target = self.listenToClient, args = (client,address)).start()
+      if conCount < (self.game.playerMax - self.game.botCount):
+        client, address = self.sock.accept()
+        if self.game.closed:
+          return
+        client.settimeout(60)
+        threading.Thread(target = self.listenToClient, args = (client,address)).start()
+      else:
+        time.sleep(1)
 
   def stop(self):
     self.running = False
@@ -311,7 +349,7 @@ class ThreadedServer(object):
           for i in range(len(player.hand)):
             x = (i * 100)
             y = 600
-            if i == player.choosen:
+            if (i == player.choosen) and (player.isChoosing or player.isStacking):
               y -= 60
             msg = CardPosMsg(player.hand[i].card,x,y,True).encode()
             client.send(msg)
