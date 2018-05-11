@@ -5,10 +5,14 @@ import socket
 import sys
 import select
 
+ICON = "gfx/icon.png"
+icon = None
 
 class RuleWin:
   def __init__(self, parent):
+    global icon
     self.root = Toplevel(parent)
+    self.root.tk.call('wm', 'iconphoto', self.root._w, icon)
     self.root.title("Rules")
     self.root.geometry("400x300")
     self.frame = RuleFrame(self.root)
@@ -17,10 +21,13 @@ class RuleWin:
 
 class MainWin:
   def __init__(self):
+    global icon
     self.tick = 0
     self.sock = None
     self.playFrame = None
     self.root = Tk()
+    icon = PhotoImage(file=ICON)
+    self.root.tk.call('wm', 'iconphoto', self.root._w, icon)
     self.root.option_add('*tearOff', FALSE)
     self.root.title("Horn Ochsen")
     self.root.geometry("1000x710")
@@ -70,7 +77,8 @@ class MainWin:
     self.root.mainloop()
     if self.playFrame != None:
       self.playFrame.running = False
-    self.sock.close()
+    if self.sock != None:
+      self.sock.close()
 
 
 def main(argv):
@@ -79,7 +87,6 @@ def main(argv):
 
 
 if __name__=="__main__":
-  import sys
   if len(sys.argv) > 1:
     main(sys.argv[1:])
   else:
