@@ -6,7 +6,7 @@ block_cipher = None
 a = Analysis(['client.py'],
              pathex=['/home/phill/Documents/Python/HornOchsen'],
              binaries=[],
-             datas=[('gfx/*.png','./gfx'),('lang/*.json','./lang')],
+             datas=[('gfx/*.png','./gfx'),('lang/*.json','./lang'),('icon.ico','.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
@@ -23,7 +23,8 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=True,
-          console=False )
+          console=False,
+          icon='icon.ico' )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
