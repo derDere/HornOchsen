@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['client.py'],
-             pathex=['/home/phill/Documents/Python/HornOchsen'],
+             pathex=['.'],
              binaries=[],
              datas=[('gfx/*.png','./gfx'),('lang/*.json','./lang'),('icon.ico','.'),('LICENSE','.')],
              hiddenimports=[],
