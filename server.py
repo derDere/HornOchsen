@@ -294,6 +294,7 @@ class ThreadedServer(object):
     socket.socket(socket.AF_INET, 
                   socket.SOCK_STREAM).connect( (self.host, self.port))
     self.sock.close()
+    exit()
 
   def listenToClient(self, client, address):
     # Bot Handling
@@ -413,6 +414,9 @@ class ThreadedServer(object):
                         print("%s has choosen stack %i" % (str(address), s))
                 else:
                   print("%s no action." % str(address))
+              elif msg[:4] == "KILL":
+                print("Killed")
+                self.stop()
         else:
           client.send("lw000000000".encode()) #Send msg: waiting ...
     except:

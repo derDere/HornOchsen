@@ -35,7 +35,7 @@ class Language():
   
   def lab(self, key, *args):
     if key in self.lib:
-      return self.lib[key] % args
+      return u"%s" % (self.lib[key] % args)
     else:
       print(">>> LANG.Key not found: %s" % key)
       return key
@@ -177,6 +177,9 @@ class Card():
     self.btn.tkraise()
     #self.btn.place(x=self.x, y=self.y, width=100, height=150)
 
+  
+LEAVE_BTN_WIDTH = 350
+
 
 class PlayFrame():
   def __init__(self, parent, sock, finishAction):
@@ -249,12 +252,12 @@ class PlayFrame():
       if msg[0:4] == "full":
         self.winner == -20
         self.infoLab.configure(text=LANG.lab('full'))
-        self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
+        self.leaveBtn.place(relx=0.5,rely=0.5,width=LEAVE_BTN_WIDTH,height=50,anchor=CENTER)
         return
       elif msg == "":
         self.winner == -30
         self.infoLab.configure(text=LANG.lab('closed'))
-        self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
+        self.leaveBtn.place(relx=0.5,rely=0.5,width=LEAVE_BTN_WIDTH,height=50,anchor=CENTER)
         return
       elif msg[0] == 'c':
         c = int(msg[1:4])
@@ -296,7 +299,7 @@ class PlayFrame():
           else:
             self.infoLab.configure(text=LANG.lab('winner', fP))
           self.winner = fP
-          self.leaveBtn.place(relx=0.5,rely=0.5,width=200,height=50,anchor=CENTER)
+          self.leaveBtn.place(relx=0.5,rely=0.5,width=LEAVE_BTN_WIDTH,height=50,anchor=CENTER)
         elif msg[1] == "p":
           csP = int(msg[2:4])
           self.infoLab.configure(text=LANG.lab('stacking', csP))
@@ -377,7 +380,7 @@ class PlayerCountSpinnbox(Spinbox):
     if pC in self.playerCountValues:
       return self.playerCountValues[pC]
     return 10
-
+    
 
 class StartFrame():
   def __init__(self, parent, socketAction):
@@ -440,6 +443,8 @@ class StartFrame():
     sock.connect(server_address)
     self.frame.place_forget()
     self.socketAction(sock)
+      
+    
 
 
 

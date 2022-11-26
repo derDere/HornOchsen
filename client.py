@@ -78,6 +78,7 @@ class MainWin:
     if self.playFrame != None:
       self.playFrame.running = False
     if self.sock != None:
+      self.sock.send(("KILL0000000").encode())
       self.sock.close()
 
 
